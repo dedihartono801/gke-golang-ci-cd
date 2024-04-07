@@ -1,8 +1,14 @@
+# Define a Kubernetes namespace named "production" for organizing resources.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: production
 
+# Define a Deployment named "myapp" within the "production" namespace.
+# This Deployment manages a single replica of the containerized application.
+# The Deployment utilizes rolling updates for deployment strategy.
+# The pod template specifies resource requests and limits for CPU and memory.
+# It also specifies the nodeSelector to deploy to nodes with the label "cloud.google.com/gke-nodepool: default-pool".
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -38,6 +44,8 @@ spec:
             cpu: "100m"      # Set your CPU limit here
             memory: "128Mi"  # Set your memory limit here
 
+# Define a Kubernetes Service named "service-myapp" within the "production" namespace.
+# This Service exposes the "myapp" Deployment internally within the cluster on port 8080.
 ---
 apiVersion: v1
 kind: Service
@@ -53,7 +61,8 @@ spec:
     port: 8080
     targetPort: 80
 
-#example ingress resource using nginx ingress controller
+# Define an Ingress resource named "ingress-myapp" within the "production" namespace.
+# This Ingress resource, using the NGINX Ingress controller, routes traffic from the host "api.cobasaja.biz.id" to the "service-myapp" Service.
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -75,7 +84,9 @@ spec:
             port: 
               number: 8080
 
-#example ingress resource without ingress controller in gce
+# Define another Ingress resource named "ingress-myapp-v2" within the "production" namespace.
+# This Ingress resource is configured for HTTPS and doesn't use an Ingress controller.
+# It routes traffic from the host "api-v2.cobasaja.biz.id" to the "service-myapp" Service.
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -86,10 +97,10 @@ metadata:
     kubernetes.io/ingress.class: gce
     kubernetes.io/ingress.allow-http: "false"
 spec:
-  tls: # konfigurasi HTTPS
+  tls: # Configuration for HTTPS
     - hosts:
       - api-v2.cobasaja.biz.id
-      secretName: tls-cobasaja # nama object secret TLS yang dibuat
+      secretName: tls-cobasaja # Name of the TLS secret object
   rules:
   - host: api-v2.cobasaja.biz.id
     http:
@@ -102,6 +113,10 @@ spec:
             port: 
               number: 8080
 
+# Define a HorizontalPodAutoscaler named "hpa-myapp" within the "production" namespace.
+# This HPA scales the "myapp" Deployment based on CPU and memory utilization, aiming for a utilization of 90%.
+# It sets minimum and maximum replicas to 1 and 5 respectively.
+# Scaling policies are defined for both scaling up and scaling down.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -140,6 +155,9 @@ spec:
         type: Utilization
         averageUtilization: 90
 
+# Define a PodDisruptionBudget named "pdb-for-myapp" within the "production" namespace.
+# This PDB ensures that at least 2 pods of the "myapp" Deployment are available during disruptions.
+# The usage of minAvailable is specified, while maxUnavailable is commented out.
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -147,12 +165,8 @@ metadata:
   name: pdb-for-myapp
   namespace: production
 spec:
-
-  # tidak dapat menggunakan minAvailable & maxUnavailable bersamaan
-
-  minAvailable: 2 # jumlah minimal pod yang harus ada, bisa integer atau persentase
-
-  #maxUnavailable: 1 # jumlah maxsimal pod yang boleh dihapus/ tidak ada, bisa integer atau persentase
+  minAvailable: 2 # Minimum number of pods that must be available
+  #maxUnavailable: 1 # Maximum number of pods that can be unavailable
   selector:
     matchLabels:
       app: myapp
