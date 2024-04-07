@@ -4,7 +4,7 @@ This repository contains an example Golang application with CI/CD integration fo
 
 ## Overview
 
-The purpose of this repository is to demonstrate a basic setup for building and deploying a Golang application on GKE using CI/CD pipelines. The example includes:
+The purpose of this repository is to demonstrate a basic setup for building and deploying a Golang application on GKE (Google Kubernetes Engine) using CI/CD pipelines. The example includes:
 
 - A simple Golang application.
 - Dockerfile for containerization.
