@@ -1,56 +1,83 @@
+# Define the name of the workflow.
 name: Build and Deploy to GKE
 
+# Define the triggers for the workflow.
 on:
-  workflow_dispatch:  # Triggers when manually triggered from the GitHub Actions UI
+  # Triggers when manually triggered from the GitHub Actions UI.
+  workflow_dispatch:
     branches:
       - master
+    # Define input parameters for manual triggering.
     inputs:
       tags:
         description: 'Docker Tag'
         required: true
         type: string
 
-  pull_request:  # Triggers when a pull request is closed
+  # Triggers when a pull request is closed.
+  pull_request:
     types: 
       - closed
     branches:
       - development
+
+# Define environment variables used in the workflow.
 env:
+  # Retrieve the Google Cloud project ID from GitHub Secrets.
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
-  GKE_CLUSTER: ciao-cluster    # Add your cluster name here.
-  GKE_ZONE: us-central1-c     # Add your cluster zone here.
-  DEPLOYMENT_NAME: ciao  # Add your deployment name here.
+
+  # Specify the name of the GKE cluster.
+  GKE_CLUSTER: ciao-cluster
+
+  # Specify the geographical zone in which the GKE cluster is located.
+  GKE_ZONE: us-central1-c
+
+  # Specify the name of the Kubernetes deployment.
+  DEPLOYMENT_NAME: ciao
+
+  # Specify the name of the Docker image.
   IMAGE: myapp
 
+# Define jobs for the workflow.
 jobs:
+  # Define the job responsible for setting up, building, publishing, and deploying.
   setup-build-publish-deploy:
     name: Setup, Build, Publish, and Deploy
     runs-on: ubuntu-latest
     environment: production
 
+    # Define steps to be executed in the job.
     steps:
+    # Step 1: Checkout the repository.
     - name: Checkout
       uses: actions/checkout@v4
 
-    # Setup gcloud CLI
+    # Step 2: Setup Google Cloud SDK.
     - uses: google-github-actions/setup-gcloud@94337306dda8180d967a56932ceb4ddcf01edae7
       with:
+        # Retrieve the service account key JSON file from GitHub Secrets.
         service_account_key: ${{ secrets.GKE_SA_KEY }}
+
+        # Use the Google Cloud project ID retrieved from GitHub Secrets.
         project_id: ${{ secrets.GKE_PROJECT }}
 
-    # Configure Docker to use the gcloud command-line tool as a credential
-    # helper for authentication
+    # Step 3: Configure Docker to use gcloud CLI for authentication.
     - run: |-
         gcloud --quiet auth configure-docker
 
-    # Get the GKE credentials so we can deploy to the cluster
+    # Step 4: Get GKE credentials to deploy to the cluster.
     - uses: google-github-actions/get-gke-credentials@fb08709ba27618c31c09e014e1d8364b02e5042e
       with:
+        # Use the specified GKE cluster name.
         cluster_name: ${{ env.GKE_CLUSTER }}
+
+        # Use the specified geographical zone.
         location: ${{ env.GKE_ZONE }}
+
+        # Use the service account key JSON file retrieved from GitHub Secrets.
         credentials: ${{ secrets.GKE_SA_KEY }}
 
-    # Build the Docker image
+    # Step 5: Build the Docker image.
     - name: Build
       run: |-
         docker build \
@@ -59,13 +86,16 @@ jobs:
           --build-arg GITHUB_REF="$GITHUB_REF" \
           .
 
-    # Push the Docker image to Google Container Registry
+    # Step 6: Push the Docker image to Google Container Registry.
     - name: Publish
       run: |-
         docker push "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA"
 
-    # Deploy the Docker image to the GKE cluster
+    # Step 7: Deploy the Docker image to the GKE cluster.
     - name: Deploy
       run: |-
+        # Update the Kubernetes deployment manifest with the new Docker image tag.
         sed -i -e 's/GITHUB_SHA/'"$GITHUB_SHA"'/' -e 's/PROJECT_ID/'"$PROJECT_ID"'/' ${{ github.workspace }}/.github/manifests/deployment.yaml
+        
+        # Apply the updated deployment manifest to the GKE cluster.
         kubectl apply -f ${{ github.workspace }}/.github/manifests/deployment.yaml
