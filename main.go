@@ -1,12 +1,51 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+
+	currentTime := time.Now()
+	date := currentTime.Format("20060102")
+	path := fmt.Sprintf("%s/%s-%s.%s", "logs", "log", date, "log")
+
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	err := os.MkdirAll(filepath.Dir(path), 0770)
+	if err == nil {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			logrus.SetOutput(os.Stdout)
+			return
+		}
+		logrus.SetOutput(file)
+	} else {
+		logrus.SetOutput(os.Stdout)
+	}
+
 	// Create a new Fiber instance
 	app := fiber.New()
+
+	// Define a middleware for request logging
+	app.Use(func(c *fiber.Ctx) error {
+		logrus.WithFields(logrus.Fields{
+			"app_name":    "myapp",
+			"app_version": "1.0",
+			"method":      c.Method(),
+			"route":       c.Path(),
+			"code":        c.Response().StatusCode(),
+		}).Info("Request log")
+
+		// Call the next handler in the chain
+		return c.Next()
+	})
 
 	// Define a route for the root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -14,7 +53,7 @@ func main() {
 	})
 
 	// Start the Fiber app on port 9494
-	err := app.Listen(":80")
+	err = app.Listen(":80")
 	if err != nil {
 		panic(err)
 	}
