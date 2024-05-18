@@ -36,6 +36,12 @@ spec:
         ports:
         - containerPort: 80
           name: myapp
+        volumeMounts:
+        - name: log-volume
+          mountPath: /var/log/pods
+        volumes:
+        - name: log-volume
+          emptyDir: {}
         resources:
           requests:
             cpu: "50m" # 50 milli-CPU
