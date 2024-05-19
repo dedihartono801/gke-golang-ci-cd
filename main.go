@@ -11,7 +11,6 @@ import (
 )
 
 func main() {
-
 	currentTime := time.Now()
 	date := currentTime.Format("20060102")
 	path := fmt.Sprintf("%s/%s-%s.%s", "logs", "log", date, "log")
@@ -19,16 +18,18 @@ func main() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
 	err := os.MkdirAll(filepath.Dir(path), 0770)
-	if err == nil {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			logrus.SetOutput(os.Stdout)
-			return
-		}
-		logrus.SetOutput(file)
-	} else {
-		logrus.SetOutput(os.Stdout)
+	if err != nil {
+		logrus.Errorf("Failed to create log directory: %v", err)
 	}
+
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		logrus.Errorf("Failed to open log file: %v", err)
+		logrus.SetOutput(os.Stdout)
+		return
+	}
+	defer file.Close() // Ensure file is closed even on errors
+	logrus.SetOutput(file)
 
 	// Create a new Fiber instance
 	app := fiber.New()
