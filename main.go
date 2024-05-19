@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -29,7 +30,8 @@ func main() {
 		return
 	}
 	defer file.Close() // Ensure file is closed even on errors
-	logrus.SetOutput(file)
+	mw := io.MultiWriter(os.Stdout, file)
+	logrus.SetOutput(mw)
 
 	// Create a new Fiber instance
 	app := fiber.New()
